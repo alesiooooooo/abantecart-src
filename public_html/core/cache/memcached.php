@@ -213,31 +213,10 @@ class ACacheDriverMemcached extends ACacheDriver
      */
     public function clean($group)
     {
-
-        $group = trim($group);
-        if (!$group) {
-            return false;
-        }
-
-        if (!$this->_lock_index()) {
-            return false;
-        }
-
-        $index = $this->connect->get($this->secret.'-index');
-        if ($index === false) {
-            $index = [];
-        }
-
-        foreach ($index as $key => $value) {
-            if ($group == '*' || is_int(strpos($value->name, $group.'.')) ) {
-                $this->connect->delete($value->name, 0);
-                unset($index[$key]);
-            }
-        }
-
-        $this->connect->replace($this->secret.'-index', $index, 0);
-        $this->_unlock_index();
-        return true;
+        // Flush the entire memcached on any group invalidation. Group-scoped
+        // cleanup via the secret-index is unreliable under LRU eviction —
+        // flushing guarantees admin saves are reflected on the storefront.
+        return $this->connect->flush();
     }
 
     /**
